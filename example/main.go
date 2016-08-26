@@ -3,6 +3,8 @@ package main
 import (
 	"ohetcd"
 	"log"
+	"time"
+	"fmt"
 )
 
 type Service struct {
@@ -17,6 +19,7 @@ type C struct {
 func main() {
 	c := &C{Name: "C"}
 	s := &Service{}
+	log.SetFlags(log.Lshortfile)
 	log.Println(s)
 	data := ohetcd.NewData()
 	// Register to /service
@@ -32,4 +35,27 @@ func main() {
 	// Update val to etcd
 	data.Save()
 	log.Println(s)
+	go func(data *ohetcd.Data, s *Service) {
+		for i := 0; i < 10; i ++ {
+			s.Name = fmt.Sprintf("%v", i)
+			//log.Println("Save")
+			//log.Println(*s)
+			//log.Println(s.Name)
+			data.Save()
+			time.Sleep(time.Second)
+		}
+
+	}(data, s)
+	time.Sleep(time.Second)
+	go func(data *ohetcd.Data, s *Service) {
+		for i := 0; i < 10; i ++ {
+			data.Update()
+			//log.Println("Update")
+			log.Println(*s)
+			time.Sleep(time.Second)
+		}
+	}(data, s)
+	for {
+
+	}
 }
