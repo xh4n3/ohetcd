@@ -25,6 +25,7 @@ func NewData() *Data {
 	return &Data{}
 }
 
+// set etcd path for data
 func (d *Data) Set(dir string, object interface{}) {
 	d.Directory = dir
 	d.Object = object
