@@ -2,95 +2,20 @@ package ohetcd
 
 import (
 	"github.com/coreos/etcd/client"
-	"golang.org/x/net/context"
-	"gopkg.in/yaml.v2"
 	"log"
-	"strings"
 	"time"
 )
 
 const (
 	ETCD_CLUSTER = "http://127.0.0.1:2379"
 	CH_CLOSE_SIG = 0
-	CH_OPEN_SIG  = 0
+	CH_OPEN_SIG  = 1
 )
 
-var kapi client.KeysAPI
-
-type Linkable interface {
-	Set()
-	Update()
-	Save()
-	Link()
-	Unlink()
-}
-
-type Data struct {
-	Directory string
-	Object    interface{}
-}
-
-func (d *Data) Set(dir string, object interface{}) {
-	d.Directory = dir
-	d.Object = object
-}
-
-// get up-to-date value from etcd
-func (d *Data) Update() {
-	resp, err := kapi.Get(context.Background(), d.Directory, &client.GetOptions{
-		Recursive: true,
-	})
-	if err != nil {
-		if strings.Contains(err.Error(), string(client.ErrorCodeKeyNotFound)) {
-			// if key not found, init etcd with current variable
-			d.Save()
-			return
-		}
-		log.Println(err)
-	}
-	data := resp.Node.Value
-	err = yaml.Unmarshal([]byte(data), d.Object)
-	if err != nil {
-		log.Println(err)
-	}
-}
-
-// changes made, save to etcd
-func (d *Data) Save() {
-	val, err := yaml.Marshal(d.Object)
-	if err != nil {
-		log.Println(err)
-	}
-	resp, err := kapi.Set(context.Background(), d.Directory, string(val), &client.SetOptions{})
-	if err != nil {
-		log.Println(err)
-	}
-	log.Println(resp)
-}
-
-func (d *Data) Link() {
-	log.Println("LINK")
-	ch := make(chan int, 1)
-	go func(d *Data, ch chan int) {
-		var i int
-		for {
-			i = <- ch
-			if i == CH_CLOSE_SIG {
-				break
-			} else {
-				d.Update()
-			}
-		}
-	}(d, ch)
-}
-
-func (d *Data) Unlink() {
-	log.Println("UNLINK")
-	close(chMap[d])
-}
-
 var (
-	chMap map[*Data]chan int
+	// global channel map
+	chMap = make(map[*Data]chan int)
+	kapi  client.KeysAPI
 )
 
 func init() {
@@ -109,10 +34,6 @@ func init() {
 
 	// Start syncLoop
 	go syncLoop()
-}
-
-func NewData() *Data {
-	return &Data{}
 }
 
 func syncLoop() {
