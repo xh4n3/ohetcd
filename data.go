@@ -53,6 +53,7 @@ func (d *Data) Update() {
 
 // changes made, save to etcd
 func (d *Data) Save() {
+	deepSave(d.Directory, d.Object)
 	val, err := yaml.Marshal(d.Object)
 	if err != nil {
 		log.Println(err)
