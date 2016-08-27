@@ -11,6 +11,8 @@ import (
 
 const (
 	ETCD_CLUSTER = "http://127.0.0.1:2379"
+	CH_CLOSE_SIG = 0
+	CH_OPEN_SIG  = 0
 )
 
 var kapi client.KeysAPI
@@ -18,7 +20,8 @@ var kapi client.KeysAPI
 type Linkable interface {
 	Set()
 	Update()
-	Link(dir string)
+	Save()
+	Link()
 	Unlink()
 }
 
@@ -32,14 +35,15 @@ func (d *Data) Set(dir string, object interface{}) {
 	d.Object = object
 }
 
+// get up-to-date value from etcd
 func (d *Data) Update() {
 	resp, err := kapi.Get(context.Background(), d.Directory, &client.GetOptions{
 		Recursive: true,
 	})
 	if err != nil {
 		if strings.Contains(err.Error(), string(client.ErrorCodeKeyNotFound)) {
+			// if key not found, init etcd with current variable
 			d.Save()
-			d.Update()
 			return
 		}
 		log.Println(err)
@@ -51,6 +55,7 @@ func (d *Data) Update() {
 	}
 }
 
+// changes made, save to etcd
 func (d *Data) Save() {
 	val, err := yaml.Marshal(d.Object)
 	if err != nil {
@@ -63,13 +68,30 @@ func (d *Data) Save() {
 	log.Println(resp)
 }
 
-func (d *Data) Link(dir string) {
+func (d *Data) Link() {
 	log.Println("LINK")
+	ch := make(chan int, 1)
+	go func(d *Data, ch chan int) {
+		var i int
+		for {
+			i = <- ch
+			if i == CH_CLOSE_SIG {
+				break
+			} else {
+				d.Update()
+			}
+		}
+	}(d, ch)
 }
 
 func (d *Data) Unlink() {
 	log.Println("UNLINK")
+	close(chMap[d])
 }
+
+var (
+	chMap map[*Data]chan int
+)
 
 func init() {
 	// init connection
@@ -84,8 +106,20 @@ func init() {
 		log.Fatal(err)
 	}
 	kapi = client.NewKeysAPI(c)
+
+	// Start syncLoop
+	go syncLoop()
 }
 
 func NewData() *Data {
 	return &Data{}
+}
+
+func syncLoop() {
+	for {
+		for _, ch := range chMap {
+			ch <- CH_OPEN_SIG
+		}
+		time.Sleep(time.Second)
+	}
 }
