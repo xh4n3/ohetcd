@@ -36,8 +36,10 @@ func main() {
 	s.Custom = c
 	pretty.Println(s)
 	data := ohetcd.NewData()
-	// Register to /service
-	data.Set("/service", s)
-	// Update val to etcd
+	// register to /service
+	data.Set("/service", s, true)
+	// update val to etcd
 	data.Save()
+	// update from etcd
+	data.Update()
 }

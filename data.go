@@ -19,6 +19,7 @@ type Linkable interface {
 type Data struct {
 	Directory string
 	Object    interface{}
+	Deep      bool
 }
 
 func NewData() *Data {
@@ -26,13 +27,18 @@ func NewData() *Data {
 }
 
 // set etcd path for data
-func (d *Data) Set(dir string, object interface{}) {
+func (d *Data) Set(dir string, object interface{}, deep bool) {
 	d.Directory = dir
 	d.Object = object
+	d.Deep = deep
 }
 
 // get up-to-date value from etcd
 func (d *Data) Update() {
+	if d.Deep {
+		deepRetrieve(d.Directory, d.Object)
+		return
+	}
 	resp, err := kapi.Get(context.Background(), d.Directory, &client.GetOptions{
 		Recursive: true,
 	})
@@ -53,7 +59,10 @@ func (d *Data) Update() {
 
 // changes made, save to etcd
 func (d *Data) Save() {
-	deepSave(d.Directory, d.Object)
+	if d.Deep {
+		deepSave(d.Directory, d.Object)
+		return
+	}
 	val, err := yaml.Marshal(d.Object)
 	if err != nil {
 		log.Println(err)

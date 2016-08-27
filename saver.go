@@ -6,6 +6,8 @@ import (
 	"reflect"
 	"fmt"
 	"gopkg.in/yaml.v2"
+	"github.com/fsouza/go-dockerclient/external/golang.org/x/net/context"
+	"github.com/coreos/etcd/client"
 )
 
 func deepSave(path string, obj interface{}) error {
@@ -28,7 +30,8 @@ func deepSave(path string, obj interface{}) error {
 			objVal.Field(i).SetLen(0)
 		}
 	}
-	marshalAndSave(path, objVal.Interface())
+	contentPath := strings.Join([]string{path, "content"}, "/")
+	marshalAndSave(contentPath, objVal.Interface())
 	return nil
 }
 
@@ -38,5 +41,14 @@ func marshalAndSave(path string, obj interface{}) error {
 		log.Println(err)
 	}
 	log.Printf("%v <- %v", path, string(data))
+	doSave(path, string(data))
 	return nil
+}
+
+func doSave(path, data string) {
+	resp, err := kapi.Set(context.Background(), path, data, &client.SetOptions{})
+	if err != nil {
+		log.Println(err)
+	}
+	log.Println(resp)
 }

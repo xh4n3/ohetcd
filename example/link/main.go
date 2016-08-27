@@ -21,7 +21,7 @@ func main() {
 	log.Println(s)
 	data := ohetcd.NewData()
 	// Register to /service
-	data.Set("/service", s)
+	data.Set("/service", s, false)
 	log.Println(s)
 	// Pull updates if any
 	data.Update()
