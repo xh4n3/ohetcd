@@ -14,8 +14,10 @@ const (
 
 var (
 	// global channel map
-	chMap = make(map[*Data]chan int)
-	kapi  client.KeysAPI
+	heartBeatChMap = make(map[*Data]chan int)
+	// watch map
+	watchChMap = make(map[*Data]chan int)
+	kapi       client.KeysAPI
 )
 
 func init() {
@@ -38,7 +40,7 @@ func init() {
 
 func syncLoop() {
 	for {
-		for _, ch := range chMap {
+		for _, ch := range heartBeatChMap {
 			ch <- CH_OPEN_SIG
 		}
 		time.Sleep(time.Second)

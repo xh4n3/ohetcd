@@ -14,6 +14,8 @@ type Linkable interface {
 	Save()
 	Link()
 	Unlink()
+	Watch()
+	Unwatch()
 }
 
 type Data struct {
@@ -58,26 +60,26 @@ func (d *Data) Update() {
 }
 
 // changes made, save to etcd
-func (d *Data) Save() {
+func (d *Data) Save() error {
 	if d.Deep {
 		deepSave(d.Directory, d.Object)
 		return
 	}
 	val, err := yaml.Marshal(d.Object)
 	if err != nil {
-		log.Println(err)
+		return err
 	}
-	resp, err := kapi.Set(context.Background(), d.Directory, string(val), &client.SetOptions{})
+	_, err = kapi.Set(context.Background(), d.Directory, string(val), &client.SetOptions{})
 	if err != nil {
-		log.Println(err)
+		return err
 	}
-	log.Println(resp)
+	return nil
 }
 
 func (d *Data) Link() {
 	ch := make(chan int)
 	// save ch into global chMap
-	chMap[d] = ch
+	heartBeatChMap[d] = ch
 	go func(d *Data, ch chan int) {
 		var i int
 		for {
@@ -89,10 +91,36 @@ func (d *Data) Link() {
 			}
 		}
 	}(d, ch)
-	log.Printf("Linked to %v\n", d.Directory)
 }
 
 func (d *Data) Unlink() {
-	chMap[d] <- CH_CLOSE_SIG
-	log.Printf("Unlinked from %v\n", d.Directory)
+	heartBeatChMap[d] <- CH_CLOSE_SIG
+}
+
+func (d *Data) Watch() {
+	watcher := kapi.Watcher(d.Directory, &client.WatcherOptions{
+		Recursive: true,
+	})
+	ch := make(chan int)
+	watchChMap[d] = ch
+	go func(watcher client.Watcher, d *Data, ch chan int) {
+		for {
+			select {
+			case <-ch:
+				return
+			default:
+				resp, err := watcher.Next(context.Background())
+				if err != nil {
+					log.Println(err)
+				} else {
+					log.Println(resp)
+					d.Update()
+				}
+			}
+		}
+	}(watcher, d, ch)
+}
+
+func (d *Data) Unwatch() {
+	watchChMap[d] <- CH_CLOSE_SIG
 }
