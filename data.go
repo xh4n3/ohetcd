@@ -3,9 +3,9 @@ package ohetcd
 import (
 	"github.com/coreos/etcd/client"
 	"golang.org/x/net/context"
-	"gopkg.in/yaml.v2"
 	"log"
 	"strings"
+	"encoding/json"
 )
 
 type Node interface {
@@ -51,7 +51,7 @@ func (d *Data) Update() {
 		log.Println(err)
 	}
 	data := resp.Node.Value
-	err = yaml.Unmarshal([]byte(data), d.Object)
+	err = json.Unmarshal([]byte(data), d.Object)
 	if err != nil {
 		log.Println(err)
 	}
@@ -62,7 +62,7 @@ func (d *Data) Save() error {
 	if d.Deep {
 		return deepSave(d.Directory, d.Object)
 	}
-	val, err := yaml.Marshal(d.Object)
+	val, err := json.Marshal(d.Object)
 	if err != nil {
 		return err
 	}
