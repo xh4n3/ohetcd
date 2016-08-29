@@ -8,12 +8,10 @@ import (
 	"strings"
 )
 
-type Linkable interface {
+type Node interface {
 	Set()
 	Update()
 	Save()
-	Link()
-	Unlink()
 	Watch()
 	Unwatch()
 }
@@ -41,7 +39,7 @@ func (d *Data) Update() {
 		deepRetrieve(d.Directory, d.Object)
 		return
 	}
-	resp, err := kapi.Get(context.Background(), d.Directory, &client.GetOptions{
+	resp, err := getKapi().Get(context.Background(), d.Directory, &client.GetOptions{
 		Recursive: true,
 	})
 	if err != nil {
@@ -68,40 +66,19 @@ func (d *Data) Save() error {
 	if err != nil {
 		return err
 	}
-	_, err = kapi.Set(context.Background(), d.Directory, string(val), &client.SetOptions{})
+	_, err = getKapi().Set(context.Background(), d.Directory, string(val), &client.SetOptions{})
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (d *Data) Link() {
-	ch := make(chan int)
-	// save ch into global chMap
-	heartBeatChMap[d] = ch
-	go func(d *Data, ch chan int) {
-		var i int
-		for {
-			i = <-ch
-			if i == CH_CLOSE_SIG {
-				break
-			} else {
-				d.Update()
-			}
-		}
-	}(d, ch)
-}
-
-func (d *Data) Unlink() {
-	heartBeatChMap[d] <- CH_CLOSE_SIG
-}
-
 func (d *Data) Watch() {
-	watcher := kapi.Watcher(d.Directory, &client.WatcherOptions{
+	watcher := getKapi().Watcher(d.Directory, &client.WatcherOptions{
 		Recursive: true,
 	})
 	ch := make(chan int)
-	watchChMap[d] = ch
+	chMap[d] = ch
 	go func(watcher client.Watcher, d *Data, ch chan int) {
 		for {
 			select {
@@ -121,5 +98,5 @@ func (d *Data) Watch() {
 }
 
 func (d *Data) Unwatch() {
-	watchChMap[d] <- CH_CLOSE_SIG
+	chMap[d] <- CH_CLOSE_SIG
 }

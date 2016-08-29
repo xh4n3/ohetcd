@@ -7,42 +7,36 @@ import (
 )
 
 const (
-	ETCD_CLUSTER = "http://127.0.0.1:2379"
 	CH_CLOSE_SIG = 0
-	CH_OPEN_SIG  = 1
 )
 
 var (
-	// global channel map
-	heartBeatChMap = make(map[*Data]chan int)
-	// watch map
-	watchChMap = make(map[*Data]chan int)
-	kapi       client.KeysAPI
+	// channel map to stop watchers
+	chMap       = make(map[*Data]chan int)
+	etcdCluster = "http://127.0.0.1:2379"
+	kapi        client.KeysAPI
 )
 
-func init() {
-	// init connection
-	cfg := client.Config{
-		Endpoints: []string{ETCD_CLUSTER},
-		Transport: client.DefaultTransport,
-		// set timeout per request to fail fast when the target endpoint is unavailable
-		HeaderTimeoutPerRequest: time.Second,
-	}
-	c, err := client.New(cfg)
-	if err != nil {
-		log.Fatal(err)
-	}
-	kapi = client.NewKeysAPI(c)
-
-	// Start syncLoop
-	go syncLoop()
+func SetEtcd(cluster string) {
+	etcdCluster = cluster
 }
 
-func syncLoop() {
-	for {
-		for _, ch := range heartBeatChMap {
-			ch <- CH_OPEN_SIG
+func getKapi() client.KeysAPI {
+	if kapi == nil {
+		// init connection
+		cfg := client.Config{
+			Endpoints: []string{etcdCluster},
+			Transport: client.DefaultTransport,
+			// set timeout per request to fail fast when the target endpoint is unavailable
+			HeaderTimeoutPerRequest: time.Second,
 		}
-		time.Sleep(time.Second)
+		c, err := client.New(cfg)
+		if err != nil {
+			log.Fatal(err)
+		}
+		kapi = client.NewKeysAPI(c)
+		return kapi
+	} else {
+		return kapi
 	}
 }
