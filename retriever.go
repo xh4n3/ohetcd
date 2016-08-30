@@ -2,11 +2,11 @@ package ohetcd
 
 import (
 	"log"
-	"github.com/fsouza/go-dockerclient/external/golang.org/x/net/context"
+	"golang.org/x/net/context"
 	"github.com/coreos/etcd/client"
 	"reflect"
 	"strings"
-	"gopkg.in/yaml.v2"
+	"encoding/json"
 )
 
 func deepRetrieve(path string, obj interface{}) error {
@@ -22,7 +22,7 @@ func deepRetrieve(path string, obj interface{}) error {
 			log.Println(content)
 		}
 	}
-	err = yaml.Unmarshal([]byte(content), obj)
+	err = json.Unmarshal([]byte(content), obj)
 	if err != nil {
 		log.Fatalln(err)
 	}

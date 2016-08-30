@@ -5,9 +5,9 @@ import (
 	"strings"
 	"reflect"
 	"fmt"
-	"gopkg.in/yaml.v2"
-	"github.com/fsouza/go-dockerclient/external/golang.org/x/net/context"
+	"golang.org/x/net/context"
 	"github.com/coreos/etcd/client"
+	"encoding/json"
 )
 
 func deepSave(path string, obj interface{}) error {
@@ -36,7 +36,7 @@ func deepSave(path string, obj interface{}) error {
 }
 
 func marshalAndSave(path string, obj interface{}) error {
-	data, err := yaml.Marshal(obj)
+	data, err := json.Marshal(obj)
 	if err != nil {
 		log.Println(err)
 	}
